@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_rss_source_tree" model="ir.ui.view">
+        <field name="name">rss.source.tree</field>
+        <field name="model">rss.source</field>
+        <field name="arch" type="xml">
+            <tree string="Sources">
+                <field name="title"/>
+                <field name="source_url"/>
+                <field name="rss_post_ids"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_rss_source_form" model="ir.ui.view">
+        <field name="name">rss.source.form</field>
+        <field name="model">rss.source</field>
+        <field name="arch" type="xml">
+            <form string="Source">
+                <header>
+                    <button
+                        name="import_rss_feed"
+                        string="Get RSS Posts"
+                        class="oe_highlight"
+                        type="object"
+                    />
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            string="Open RSS Posts"
+                            class="oe_stat_button"
+                            type="object"
+                            name="open_rss_posts"
+                            icon="fa-newspaper-o"
+                        />
+                    </div>
+                    <group>
+                        <field name="title"/>
+                        <field name="source_url"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_rss_source" model="ir.actions.act_window">
+        <field name="name">Sources</field>
+        <field name="res_model">rss.source</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_rss_source_tree"/>
+    </record>
+    <menuitem id="menu_source" name="Rss Sources" parent="feed_rss.menu_rss" sequence="2" action="action_rss_source"/>
+</odoo>

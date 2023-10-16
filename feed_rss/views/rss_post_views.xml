@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_rss_post_tree" model="ir.ui.view">
+        <field name="name">rss.post.tree</field>
+        <field name="model">rss.post</field>
+        <field name="arch" type="xml">
+            <tree string="Items">
+                <field name="title"/>
+                <field name="link"/>
+                <field name="publish_date"/>
+                <field name="description"/>
+                <field name="author"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_rss_post_form" model="ir.ui.view">
+        <field name="name">rss.post.form</field>
+        <field name="model">rss.post</field>
+        <field name="arch" type="xml">
+            <form string="Item">
+                <sheet>
+                    <group>
+                        <field name="title"/>
+                        <field name="link"/>
+                        <field name="publish_date"/>
+                        <field name="description" widget="html"/>
+                        <field name="author"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_rss_post" model="ir.actions.act_window">
+        <field name="name">Items</field>
+        <field name="res_model">rss.post</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_rss_post_tree"/>
+    </record>
+    <menuitem id="menu_rss" name="Rss Posts"  groups="feed_rss.rss_group" sequence="12"/>
+    <menuitem id="menu_rss_post" name="Rss Post" parent="menu_rss" sequence="1" action="action_rss_post"/>
+</odoo>
