@@ -10,6 +10,7 @@
     "category": "Pms",
     "website": "https://github.com/OCA/pms",
     "installable": True,
+    "external_dependencies": {"python": ["feedparser"]},
     "data": [
         "security/pms_security.xml",
         "security/ir.model.access.csv",
