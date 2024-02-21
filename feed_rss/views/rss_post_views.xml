@@ -1,15 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <record id="view_rss_post_tree" model="ir.ui.view">
         <field name="name">rss.post.tree</field>
         <field name="model">rss.post</field>
         <field name="arch" type="xml">
             <tree string="Items">
-                <field name="title"/>
-                <field name="link"/>
-                <field name="publish_date"/>
-                <field name="description"/>
-                <field name="author"/>
+                <field name="title" />
+                <field name="link" />
+                <field name="publish_date" />
+                <field name="description" />
+                <field name="author" />
             </tree>
         </field>
     </record>
@@ -21,11 +21,11 @@
             <form string="Item">
                 <sheet>
                     <group>
-                        <field name="title"/>
-                        <field name="link"/>
-                        <field name="publish_date"/>
-                        <field name="description" widget="html"/>
-                        <field name="author"/>
+                        <field name="title" />
+                        <field name="link" />
+                        <field name="publish_date" />
+                        <field name="description" widget="html" />
+                        <field name="author" />
                     </group>
                 </sheet>
             </form>
@@ -35,8 +35,20 @@
         <field name="name">Items</field>
         <field name="res_model">rss.post</field>
         <field name="view_mode">tree,form</field>
-        <field name="search_view_id" ref="view_rss_post_tree"/>
+        <field name="search_view_id" ref="view_rss_post_tree" />
     </record>
-    <menuitem id="menu_rss" name="Rss Posts"  groups="feed_rss.rss_group" sequence="12"/>
-    <menuitem id="menu_rss_post" name="Rss Post" parent="menu_rss" sequence="1" action="action_rss_post"/>
+    <menuitem
+        id="menu_rss"
+        name="Rss Feed"
+        groups="feed_rss.rss_group"
+        sequence="12"
+        web_icon="feed_rss,static/description/icon.png"
+    />
+    <menuitem
+        id="menu_rss_post"
+        name="Rss Post"
+        parent="menu_rss"
+        sequence="1"
+        action="action_rss_post"
+    />
 </odoo>
