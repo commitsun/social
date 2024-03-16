@@ -40,7 +40,7 @@
     <menuitem
         id="menu_rss"
         name="Rss Feed"
-        groups="feed_rss.rss_group"
+        groups="feed_rss.rss_management"
         sequence="12"
         web_icon="feed_rss,static/description/icon.png"
     />
