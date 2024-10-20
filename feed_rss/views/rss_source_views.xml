@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <record id="view_rss_source_tree" model="ir.ui.view">
         <field name="name">rss.source.tree</field>
         <field name="model">rss.source</field>
         <field name="arch" type="xml">
-            <tree string="Sources">
-                <field name="title"/>
-                <field name="source_url"/>
-                <field name="rss_post_ids"/>
+            <tree>
+                <field name="title" />
+                <field name="source_url" />
+                <field name="rss_post_ids" />
             </tree>
         </field>
     </record>
@@ -36,8 +36,8 @@
                         />
                     </div>
                     <group>
-                        <field name="title"/>
-                        <field name="source_url"/>
+                        <field name="title" />
+                        <field name="source_url" />
                     </group>
                 </sheet>
             </form>
@@ -47,7 +47,13 @@
         <field name="name">Sources</field>
         <field name="res_model">rss.source</field>
         <field name="view_mode">tree,form</field>
-        <field name="search_view_id" ref="view_rss_source_tree"/>
+        <field name="search_view_id" ref="view_rss_source_tree" />
     </record>
-    <menuitem id="menu_source" name="Rss Sources" parent="feed_rss.menu_rss" sequence="2" action="action_rss_source"/>
+    <menuitem
+        id="menu_source"
+        name="Rss Sources"
+        parent="feed_rss.menu_rss"
+        sequence="2"
+        action="action_rss_source"
+    />
 </odoo>
