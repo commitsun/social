@@ -8,13 +8,15 @@
     "license": "AGPL-3",
     "application": True,
     "category": "Pms",
-    "website": "https://github.com/OCA/pms",
+    "website": "https://github.com/OCA/social",
     "installable": True,
     "external_dependencies": {"python": ["feedparser"]},
+    "depends": ["base", "mail"],
     "data": [
         "security/pms_security.xml",
         "security/ir.model.access.csv",
         "views/rss_post_views.xml",
         "views/rss_source_views.xml",
-    ]
+        "data/cron_jobs.xml",
+    ],
 }
