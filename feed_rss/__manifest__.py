@@ -3,7 +3,7 @@
 
 {
     "name": "Feed RSS",
-    "version": "14.0.2.6.7",
+    "version": "16.0.1.0.0",
     "author": "Commit [Sun], Odoo Community Association (OCA)",
     "license": "AGPL-3",
     "application": True,
