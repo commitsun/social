@@ -33,7 +33,13 @@ class RssSource(models.Model):
     )
 
     def import_rss_feed(self):
-        self.ensure_one()
+        # If self not is a recordset, then search all rss sources
+        if not self:
+            rss_sources = self.env["rss.source"].search([])
+            for rss_source in rss_sources:
+                rss_source.import_rss_feed()
+            return
+
         feed = feedparser.parse(self.source_url)
         for entry in feed.entries:
             published_date = None
@@ -43,6 +49,7 @@ class RssSource(models.Model):
                 f"{entry.get('title', '')}"
                 f"{entry.get('link', '')}"
                 f"{entry.get('summary', '')}"
+                f"{entry.get('published', '')}"
             )
             content_hash = hashlib.md5(post_content.encode("utf-8")).hexdigest()
             rss_post_vals = {
@@ -68,15 +75,24 @@ class RssSource(models.Model):
                 )
                 if rss_post and rss_post.hash_md5 != rss_post_vals["hash_md5"]:
                     rss_post.write(rss_post_vals)
+                    rss_post.message_post(
+                        body=(
+                            _("RSS feed updated successfully %s")
+                            % (rss_post_vals["title"])
+                        )
+                    )
                 elif not rss_post:
                     self.env["rss.post"].create(rss_post_vals)
-                self.message_post(
-                    _(body="RSS feed imported successfully %s" % rss_post_vals["title"])
-                )
+                    self.message_post(
+                        body=(
+                            _("RSS feed imported successfully %s")
+                            % (rss_post_vals["title"])
+                        )
+                    )
             except Exception as e:
                 self.message_post(
-                    _(
-                        body="Error importing RSS feed %s: %s"
+                    body=(
+                        _("Error importing RSS feed %s: %s")
                         % (rss_post_vals["title"], e)
                     )
                 )
