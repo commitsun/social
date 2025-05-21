@@ -14,17 +14,18 @@ class RssSource(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     id = fields.Char(
-        string="ID",
         help="Source ID",
         required=True,
     )
     title = fields.Char(
-        string="Title",
         help="Source title",
         required=True,
         translate=True,
     )
-    source_url = fields.Char(string="Source URL", help="Source url")
+    source_url = fields.Char(
+        help="Url of the RSS feed",
+        required=True,
+    )
     rss_post_ids = fields.One2many(
         comodel_name="rss.post",
         inverse_name="rss_source_id",
@@ -75,10 +76,11 @@ class RssSource(models.Model):
                 )
             except Exception as e:
                 self.message_post(
-                    _(
-                        body="Error importing RSS feed %s: %s"
-                        % (rss_post_vals["title"], e)
-                    )
+                    body=_("Error importing RSS feed %(title)s: %(error)s")
+                    % {
+                        "title": rss_post_vals["title"],
+                        "error": e,
+                    }
                 )
 
     def open_rss_posts(self):
