@@ -80,6 +80,25 @@ class RssSource(models.Model):
                 return heading
         return entry.get("title", None)
 
+    def _extract_description(self, entry, limit=400):
+        """Resumen corto para la tarjeta del dashboard. Quita los encabezados (el
+        titular ya va en 'title') y las imágenes (van en 'image_url'), pasa a
+        texto y recorta. Evita volcar el artículo completo con la imagen embebida
+        cuando el feed entrega el contenido entero en el cuerpo (p. ej. Mintlify)."""
+        text = self._entry_body_html(entry)
+        text = re.sub(
+            r"<h[1-6][^>]*>.*?</h[1-6]>", " ", text, flags=re.IGNORECASE | re.DOTALL
+        )
+        text = re.sub(
+            r"<figure[^>]*>.*?</figure>", " ", text, flags=re.IGNORECASE | re.DOTALL
+        )
+        text = re.sub(r"<img[^>]*>", " ", text, flags=re.IGNORECASE)
+        text = HTML_TAG_RE.sub(" ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        if len(text) > limit:
+            text = text[:limit].rsplit(" ", 1)[0].rstrip(" ,.;:—-") + " […]"
+        return text or None
+
     def import_rss_feed(self):
         self.ensure_one()
         feed = feedparser.parse(self.source_url)
@@ -97,7 +116,7 @@ class RssSource(models.Model):
                 "post_id": entry.get("id", entry.get("link", None)),
                 "title": self._extract_title(entry),
                 "link": entry.get("link", None),
-                "description": entry.get("summary", None),
+                "description": self._extract_description(entry),
                 "publish_date": published_date,
                 "author": entry.get("author", None),
                 "image_url": self._extract_image_url(entry),
