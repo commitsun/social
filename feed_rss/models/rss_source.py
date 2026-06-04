@@ -1,6 +1,7 @@
 # Copyright 2023
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import hashlib
+import html
 import re
 from datetime import datetime
 
@@ -8,13 +9,29 @@ import feedparser
 
 from odoo import _, fields, models
 
-# Patrones para extraer la imagen y el titular del HTML del cuerpo del item
-# (content:encoded o description). Necesario para feeds que no exponen un
-# <enclosure> para la imagen ni un <title> descriptivo (p. ej. Mintlify, que
-# pone la portada y el titular dentro del HTML del contenido).
+# Patrones para extraer la imagen, el titular y la introducción del HTML del
+# cuerpo del item (content:encoded o description). Necesario para feeds que no
+# exponen un <enclosure> para la imagen ni un <title> descriptivo (p. ej.
+# Mintlify, que pone la portada y el titular dentro del HTML del contenido).
 IMG_SRC_RE = re.compile(r"""<img[^>]+src=["']([^"']+)["']""", re.IGNORECASE)
 HEADING_RE = re.compile(r"<h[12][^>]*>(.*?)</h[12]>", re.IGNORECASE | re.DOTALL)
 HTML_TAG_RE = re.compile(r"<[^>]+>")
+PARAGRAPH_RE = re.compile(r"<p[^>]*>(.*?)</p>", re.IGNORECASE | re.DOTALL)
+
+# Algunos feeds (p. ej. Mintlify) ponen la fecha real del artículo en el <title>
+# y entregan un <pubDate> poco fiable (fecha de build, igual para varios items),
+# lo que rompe la ordenación. Estos meses permiten leer la fecha del <title>.
+MONTHS = {
+    "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
+    "julio": 7, "agosto": 8, "septiembre": 9, "setiembre": 9, "octubre": 10,
+    "noviembre": 11, "diciembre": 12,
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11,
+    "december": 12,
+}
+DATE_RE = re.compile(
+    r"(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]+)\s+(?:de\s+)?(\d{4})", re.IGNORECASE
+)
 
 
 class RssSource(models.Model):
@@ -80,32 +97,52 @@ class RssSource(models.Model):
                 return heading
         return entry.get("title", None)
 
-    def _extract_description(self, entry, limit=400):
-        """Resumen corto para la tarjeta del dashboard. Quita los encabezados (el
-        titular ya va en 'title') y las imágenes (van en 'image_url'), pasa a
-        texto y recorta. Evita volcar el artículo completo con la imagen embebida
-        cuando el feed entrega el contenido entero en el cuerpo (p. ej. Mintlify)."""
-        text = self._entry_body_html(entry)
-        text = re.sub(
-            r"<h[1-6][^>]*>.*?</h[1-6]>", " ", text, flags=re.IGNORECASE | re.DOTALL
-        )
-        text = re.sub(
-            r"<figure[^>]*>.*?</figure>", " ", text, flags=re.IGNORECASE | re.DOTALL
-        )
-        text = re.sub(r"<img[^>]*>", " ", text, flags=re.IGNORECASE)
-        text = HTML_TAG_RE.sub(" ", text)
-        text = re.sub(r"\s+", " ", text).strip()
+    def _clean_text(self, raw, limit):
+        text = re.sub(r"\s+", " ", HTML_TAG_RE.sub(" ", raw)).strip()
+        text = re.sub(r"\s+([,.;:!?])", r"\1", text)  # sin espacio antes de puntuación
         if len(text) > limit:
-            text = text[:limit].rsplit(" ", 1)[0].rstrip(" ,.;:—-") + " […]"
-        return text or None
+            text = text[:limit].rsplit(" ", 1)[0].rstrip(" ,.;:—-") + "…"
+        return text
+
+    def _extract_description(self, entry, limit=300):
+        """Introducción breve para la tarjeta del dashboard: el primer párrafo de
+        texto real del cuerpo, como reclamo para entrar al detalle. Decodifica
+        entidades (algunos feeds escapan HTML, p. ej. botones JSX de Mintlify) y
+        descarta imágenes y enlaces sueltos. Evita volcar el artículo completo o
+        dejar HTML visible."""
+        body = html.unescape(self._entry_body_html(entry))
+        body = re.sub(
+            r"<figure[^>]*>.*?</figure>", " ", body, flags=re.IGNORECASE | re.DOTALL
+        )
+        body = re.sub(r"<img[^>]*>", " ", body, flags=re.IGNORECASE)
+        for raw in PARAGRAPH_RE.findall(body):
+            text = self._clean_text(raw, limit)
+            if len(text) >= 40:  # primer párrafo con texto sustancial = la intro
+                return text
+        return self._clean_text(body, limit) or None
+
+    def _extract_publish_date(self, entry):
+        """Fecha de publicación: preferimos la fecha escrita en el <title> (algunos
+        feeds, p. ej. Mintlify, ponen ahí la fecha real del artículo y un <pubDate>
+        que es la fecha de build, lo que rompe el orden). Si no, el <pubDate>."""
+        match = DATE_RE.search(entry.get("title") or "")
+        if match:
+            day, month_name, year = match.groups()
+            month = MONTHS.get(month_name.lower())
+            if month:
+                try:
+                    return datetime(int(year), month, int(day))
+                except ValueError:
+                    pass
+        if entry.get("published_parsed"):
+            return datetime(*entry.published_parsed[:6])
+        return None
 
     def import_rss_feed(self):
         self.ensure_one()
         feed = feedparser.parse(self.source_url)
         for entry in feed.entries:
-            published_date = None
-            if entry.published_parsed:
-                published_date = datetime(*entry.published_parsed[:6])
+            published_date = self._extract_publish_date(entry)
             post_content = (
                 f"{entry.get('title', '')}"
                 f"{entry.get('link', '')}"
