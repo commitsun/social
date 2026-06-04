@@ -1,11 +1,20 @@
 # Copyright 2023
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import hashlib
+import re
 from datetime import datetime
 
 import feedparser
 
 from odoo import _, fields, models
+
+# Patrones para extraer la imagen y el titular del HTML del cuerpo del item
+# (content:encoded o description). Necesario para feeds que no exponen un
+# <enclosure> para la imagen ni un <title> descriptivo (p. ej. Mintlify, que
+# pone la portada y el titular dentro del HTML del contenido).
+IMG_SRC_RE = re.compile(r"""<img[^>]+src=["']([^"']+)["']""", re.IGNORECASE)
+HEADING_RE = re.compile(r"<h[12][^>]*>(.*?)</h[12]>", re.IGNORECASE | re.DOTALL)
+HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 class RssSource(models.Model):
@@ -33,6 +42,44 @@ class RssSource(models.Model):
         help="Posts",
     )
 
+    @staticmethod
+    def _entry_body_html(entry):
+        """HTML del cuerpo del item (content:encoded si existe, si no description)."""
+        contents = entry.get("content")
+        if contents:
+            return contents[0].get("value") or ""
+        return entry.get("summary") or ""
+
+    def _extract_image_url(self, entry):
+        """Imagen del item: <enclosure> -> media:* -> primera <img> del cuerpo."""
+        enclosure = next(
+            (
+                link.href
+                for link in entry.get("links", [])
+                if link.get("rel") == "enclosure"
+            ),
+            None,
+        )
+        if enclosure:
+            return enclosure
+        for media_key in ("media_content", "media_thumbnail"):
+            media = entry.get(media_key)
+            if media and media[0].get("url"):
+                return media[0]["url"]
+        match = IMG_SRC_RE.search(self._entry_body_html(entry))
+        return match.group(1) if match else None
+
+    def _extract_title(self, entry):
+        """Titular del item. Algunos feeds (Mintlify) ponen la fecha en <title> y
+        el titular real en un encabezado del cuerpo; en ese caso usamos el primer
+        <h1>/<h2>. Si no hay encabezado, caemos al <title> del item."""
+        match = HEADING_RE.search(self._entry_body_html(entry))
+        if match:
+            heading = HTML_TAG_RE.sub("", match.group(1)).strip()
+            if heading:
+                return heading
+        return entry.get("title", None)
+
     def import_rss_feed(self):
         self.ensure_one()
         feed = feedparser.parse(self.source_url)
@@ -48,19 +95,12 @@ class RssSource(models.Model):
             content_hash = hashlib.md5(post_content.encode("utf-8")).hexdigest()
             rss_post_vals = {
                 "post_id": entry.get("id", entry.get("link", None)),
-                "title": entry.get("title", None),
+                "title": self._extract_title(entry),
                 "link": entry.get("link", None),
                 "description": entry.get("summary", None),
                 "publish_date": published_date,
                 "author": entry.get("author", None),
-                "image_url": next(
-                    (
-                        link.href
-                        for link in entry.get("links", [])
-                        if link.get("rel") == "enclosure"
-                    ),
-                    None,
-                ),
+                "image_url": self._extract_image_url(entry),
                 "hash_md5": content_hash,
             }
             try:
@@ -72,7 +112,8 @@ class RssSource(models.Model):
                 elif not rss_post:
                     self.env["rss.post"].create(rss_post_vals)
                 self.message_post(
-                    _(body="RSS feed imported successfully %s" % rss_post_vals["title"])
+                    body=_("RSS feed imported successfully %s")
+                    % rss_post_vals["title"]
                 )
             except Exception as e:
                 self.message_post(
